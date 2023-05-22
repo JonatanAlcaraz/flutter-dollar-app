@@ -53,7 +53,10 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   ExchangeData exchangeData = ExchangeData(data: {}, lastUpdate: DateTime.now());
-
+  double valorIngresado = 0.0;
+  double resultado = 0.0;
+  String opcionSeleccionada = 'Dólar';
+  
   void actualizarDatos() async {
     var response = await http.get(Uri.parse('https://api.bluelytics.com.ar/v2/latest'));
 
@@ -82,34 +85,48 @@ class _MyHomePageState extends State<MyHomePage> {
       );
     }
   }
+
+  void actualizarValorIngresado(double valor, Map<String, dynamic> jsonData) {
+  setState(() {
+    valorIngresado = valor;
+    if (opcionSeleccionada == 'Dólar') {
+      resultado = valorIngresado * jsonData['oficial']['value_sell'];
+    } else {
+      resultado = valorIngresado * jsonData['oficial_euro']['value_sell'];
+    }
+  });
+}
+
+
+
   Future<ExchangeData> _getExchangeData() async {
     final exchangeData = await fetchExchangeData();
     return exchangeData;
   }
 
   Widget _buildExchangeCard(String title, double valueSell, double valueBuy) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: TextStyle(
-                backgroundColor: Color.fromRGBO(207, 40, 207, 0),
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+  return Card(
+    child: Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
             ),
-            SizedBox(height: 8),
-            Text('Valor de compra: $valueBuy'),
-            Text('Valor de venta: $valueSell'),
-          ],
-        ),
+          ),
+          Text('Valor de compra: $valueBuy'),
+          Text('Valor de venta: $valueSell'),
+          SizedBox(height: 16),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -126,58 +143,108 @@ class _MyHomePageState extends State<MyHomePage> {
         ],
       ),
       body: Center(
-        child: FutureBuilder<ExchangeData>(
-          future: _getExchangeData(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return CircularProgressIndicator();
-            } else if (snapshot.hasError) {
-              return Text('Error: ${snapshot.error}');
-            } else if (snapshot.hasData) {
-              final exchangeData = snapshot.data!;
-              final jsonData = exchangeData.data;
-              final lastUpdate = exchangeData.lastUpdate;
-              final formattedDateTime = DateFormat('dd MM yyyy HH:mm').format(lastUpdate);
+        child: SingleChildScrollView(
+  child: Column(
+    children: [
+      // Parte de la API
 
-              return Column(
-                children: [
-                  _buildExchangeCard(
-                    'Dolar Oficial',
-                    jsonData['oficial']['value_sell'],
-                    jsonData['oficial']['value_buy'],
-                  ),
-                  _buildExchangeCard(
-                    'Dolar Blue',
-                    jsonData['blue']['value_sell'],
-                    jsonData['blue']['value_buy'],
-                  ),
-                  _buildExchangeCard(
-                    'Oficial Euro',
-                    jsonData['oficial_euro']['value_sell'],
-                    jsonData['oficial_euro']['value_buy'],
-                  ),
-                  _buildExchangeCard(
-                    'Blue Euro',
-                    jsonData['blue_euro']['value_sell'],
-                    jsonData['blue_euro']['value_buy'],
-                  ),
-                  SizedBox(height: 16),
-                  Text(
-                    'Última actualización: $formattedDateTime',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              );
+      FutureBuilder<ExchangeData>(
+        future: _getExchangeData(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return CircularProgressIndicator();
+          } else if (snapshot.hasError) {
+            return Text('Error: ${snapshot.error}');
+          } else if (snapshot.hasData) {
+            final exchangeData = snapshot.data!;
+            final jsonData = exchangeData.data;
+            final lastUpdate = exchangeData.lastUpdate;
+            final formattedDateTime = DateFormat('dd MM yyyy HH:mm').format(lastUpdate);
+
+            // Calculadora
+            double resultado;
+            if (opcionSeleccionada == 'Dólar') {
+              resultado = valorIngresado * jsonData['oficial']['value_sell'];
             } else {
-              return Text('No hay datos disponibles');
+              resultado = valorIngresado * jsonData['oficial_euro']['value_sell'];
             }
-          },
-        ),
+
+            return Column(
+              children: [
+                _buildExchangeCard(
+                  'Dolar Oficial',
+                  jsonData['oficial']['value_sell'],
+                  jsonData['oficial']['value_buy'],
+                ),
+                _buildExchangeCard(
+                  'Dolar Blue',
+                  jsonData['blue']['value_sell'],
+                  jsonData['blue']['value_buy'],
+                ),
+                _buildExchangeCard(
+                  'Oficial Euro',
+                  jsonData['oficial_euro']['value_sell'],
+                  jsonData['oficial_euro']['value_buy'],
+                ),
+                _buildExchangeCard(
+                  'Blue Euro',
+                  jsonData['blue_euro']['value_sell'],
+                  jsonData['blue_euro']['value_buy'],
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'Última actualización: $formattedDateTime',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+
+                // Calculadora
+                Container(
+                  padding: EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Calculadora',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      TextField(
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: 'Ingrese un valor',
+                        ),
+                        onChanged: (value) {
+                          actualizarValorIngresado(double.tryParse(value) ?? 0.0, jsonData);
+                        },
+                      ),
+                      SizedBox(height: 16),
+                      Text(
+                        'Resultado: $resultado',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          } else {
+            return Text('No hay datos disponibles');
+          }
+        },
       ),
-    );
+    ],
+  ),
+),
+    ));
   }
 }
 
